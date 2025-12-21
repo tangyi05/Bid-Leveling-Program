@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bid Leveling AI</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'JetBrains Mono', monospace; margin: 0; padding: 0; }
+        #root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+        const API_URL = 'http://localhost:5000/api';
+
+        function BidLevelingApp() {
+          const [files, setFiles] = useState([]);
+          const [bidderNames, setBidderNames] = useState([]);
+          const [analyses, setAnalyses] = useState(null);
+          const [loading, setLoading] = useState(false);
+          const [error, setError] = useState(null);
+          const [mode, setMode] = useState('single');
+
+          const handleFileChange = (e) => {
+            const selectedFiles = Array.from(e.target.files);
+            setFiles(selectedFiles);
+            setBidderNames(selectedFiles.map((f, i) => `Bidder ${i + 1}`));
+            setAnalyses(null);
+            setError(null);
+          };
+
+          const updateBidderName = (index, name) => {
+            const newNames = [...bidderNames];
+            newNames[index] = name;
+            setBidderNames(newNames);
+          };
+
+          const analyzeBids = async () => {
+            if (files.length === 0) {
+              setError('Please select at least one PDF file');
+              return;
+            }
+
+            setLoading(true);
+            setError(null);
+
+            try {
+              if (mode === 'single' && files.length === 1) {
+                const formData = new FormData();
+                formData.append('file', files[0]);
+                formData.append('bidder_name', bidderNames[0]);
+
+                const response = await fetch(`${API_URL}/analyze-bid`, {
+                  method: 'POST',
+                  body: formData,
+                });
+
+                if (!response.ok) throw new Error('Analysis failed');
+                const data = await response.json();
+                setAnalyses({ individual_analyses: [data] });
+              } else {
+                const formData = new FormData();
+                files.forEach(file => formData.append('files', file));
+                bidderNames.forEach(name => formData.append('bidder_names', name));
+
+                const response = await fetch(`${API_URL}/compare-bids`, {
+                  method: 'POST',
+                  body: formData,
+                });
+
+                if (!response.ok) throw new Error('Comparison failed');
+                const data = await response.json();
+                setAnalyses(data);
+              }
+            } catch (err) {
+              setError(err.message || 'An error occurred during analysis');
+            } finally {
+              setLoading(false);
+            }
+          };
+
+          const getRecommendationColor = (rec) => {
+            if (rec === 'RECOMMEND') return '#00ff88';
+            if (rec === 'RECOMMEND WITH CAUTION') return '#ffaa00';
+            return '#ff4444';
+          };
+
+          const getRiskColor = (risk) => {
+            if (risk === 'LOW') return '#00ff88';
+            if (risk === 'MEDIUM') return '#ffaa00';
+            return '#ff4444';
+          };
+
+          return (
+            <div style={{
+              minHeight: '100vh',
+              background: '#0a0e1a',
+              backgroundImage: `linear-gradient(rgba(0, 100, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 100, 255, 0.03) 1px, transparent 1px)`,
+              backgroundSize: '40px 40px',
+              color: '#e0e6ed',
+              fontFamily: '"JetBrains Mono", monospace',
+              padding: '0',
+              margin: '0',
+            }}>
+              <div style={{
+                borderBottom: '2px solid #1a4d8f',
+                background: 'linear-gradient(180deg, #0f1624 0%, #0a0e1a 100%)',
+                padding: '2rem 3rem',
+                position: 'relative',
+              }}>
+                <h1 style={{
+                  margin: 0,
+                  fontSize: '2.5rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #4a8fe7 0%, #00d4ff 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>
+                  BID LEVELING AI
+                </h1>
+              </div>
+
+              <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '3rem' }}>
+                <div style={{
+                  background: 'rgba(15, 22, 36, 0.6)',
+                  border: '1px solid #1a4d8f',
+                  borderRadius: '8px',
+                  padding: '2rem',
+                  marginBottom: '2rem',
+                }}>
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <button onClick={() => setMode('single')} style={{
+                      padding: '0.75rem 1.5rem',
+                      background: mode === 'single' ? '#1a4d8f' : 'transparent',
+                      border: '1px solid #1a4d8f',
+                      color: mode === 'single' ? '#00d4ff' : '#6b8cae',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}>
+                      SINGLE BID
+                    </button>
+                    <button onClick={() => setMode('compare')} style={{
+                      padding: '0.75rem 1.5rem',
+                      background: mode === 'compare' ? '#1a4d8f' : 'transparent',
+                      border: '1px solid #1a4d8f',
+                      color: mode === 'compare' ? '#00d4ff' : '#6b8cae',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}>
+                      COMPARE BIDS
+                    </button>
+                  </div>
+
+                  <div style={{
+                    border: '2px dashed #1a4d8f',
+                    borderRadius: '6px',
+                    padding: '2rem',
+                    textAlign: 'center',
+                    marginBottom: '1.5rem',
+                  }}>
+                    <input
+                      type="file"
+                      multiple={mode === 'compare'}
+                      accept=".pdf"
+                      onChange={handleFileChange}
+                      style={{ display: 'none' }}
+                      id="file-upload"
+                    />
+                    <label htmlFor="file-upload" style={{ cursor: 'pointer' }}>
+                      <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
+                      <div style={{ fontSize: '1.1rem', color: '#e0e6ed' }}>
+                        {files.length > 0 ? `${files.length} file(s) selected` : 'Click to upload PDF'}
+                      </div>
+                    </label>
+                  </div>
+
+                  {files.length > 0 && (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      {files.map((file, index) => (
+                        <div key={index} style={{
+                          display: 'flex',
+                          gap: '1rem',
+                          padding: '0.75rem',
+                          background: 'rgba(26, 77, 143, 0.1)',
+                          border: '1px solid #1a4d8f',
+                          borderRadius: '4px',
+                          marginBottom: '0.5rem',
+                        }}>
+                          <div style={{ flex: 1 }}>📎 {file.name}</div>
+                          <input
+                            type="text"
+                            value={bidderNames[index]}
+                            onChange={(e) => updateBidderName(index, e.target.value)}
+                            style={{
+                              padding: '0.5rem',
+                              background: '#0f1624',
+                              border: '1px solid #1a4d8f',
+                              borderRadius: '4px',
+                              color: '#e0e6ed',
+                              fontFamily: 'inherit',
+                              width: '200px',
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={analyzeBids}
+                    disabled={loading || files.length === 0}
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      background: loading ? '#1a3050' : 'linear-gradient(135deg, #1a4d8f 0%, #0064ff 100%)',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      fontSize: '1rem',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {loading ? '⚙️ ANALYZING...' : '🔍 ANALYZE BIDS'}
+                  </button>
+
+                  {error && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1rem',
+                      background: 'rgba(255, 68, 68, 0.1)',
+                      border: '1px solid #ff4444',
+                      borderRadius: '4px',
+                      color: '#ff8888',
+                    }}>
+                      ⚠️ {error}
+                    </div>
+                  )}
+                </div>
+
+                {analyses && analyses.individual_analyses && (
+                  <div>
+                    {analyses.individual_analyses.map((analysis, index) => (
+                      <div key={index} style={{
+                        background: 'rgba(15, 22, 36, 0.8)',
+                        border: '1px solid #1a4d8f',
+                        borderRadius: '8px',
+                        padding: '2rem',
+                        marginBottom: '2rem',
+                      }}>
+                        <h2 style={{ color: '#00d4ff', marginBottom: '1rem' }}>
+                          {analysis.bidder_name}
+                        </h2>
+                        
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '1rem',
+                          marginBottom: '1.5rem',
+                        }}>
+                          <div style={{
+                            background: 'rgba(0, 100, 255, 0.1)',
+                            border: '1px solid #1a4d8f',
+                            borderRadius: '6px',
+                            padding: '1rem',
+                            textAlign: 'center',
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6b8cae', marginBottom: '0.5rem' }}>
+                              SCORE
+                            </div>
+                            <div style={{ fontSize: '2.5rem', color: '#4a8fe7', fontWeight: 700 }}>
+                              {analysis.overall_score}/10
+                            </div>
+                          </div>
+                          <div style={{
+                            background: 'rgba(0, 100, 255, 0.1)',
+                            border: '1px solid #1a4d8f',
+                            borderRadius: '6px',
+                            padding: '1rem',
+                            textAlign: 'center',
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6b8cae', marginBottom: '0.5rem' }}>
+                              STATUS
+                            </div>
+                            <div style={{
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              color: getRecommendationColor(analysis.recommendation),
+                            }}>
+                              {analysis.recommendation}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <div style={{ fontSize: '0.85rem', color: '#4a8fe7', marginBottom: '0.75rem' }}>
+                            Summary
+                          </div>
+                          <p style={{ fontSize: '0.95rem', lineHeight: 1.6, color: '#e0e6ed' }}>
+                            {analysis.summary}
+                          </p>
+                        </div>
+
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '1rem',
+                          marginBottom: '1.5rem',
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '0.85rem', color: '#00ff88', marginBottom: '0.75rem' }}>
+                              ✓ Strengths
+                            </div>
+                            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                              {analysis.pros.map((pro, i) => (
+                                <li key={i} style={{
+                                  fontSize: '0.85rem',
+                                  color: '#e0e6ed',
+                                  marginBottom: '0.5rem',
+                                  paddingLeft: '1.25rem',
+                                  position: 'relative',
+                                }}>
+                                  <span style={{ position: 'absolute', left: 0, color: '#00ff88' }}>+</span>
+                                  {pro}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.85rem', color: '#ff8888', marginBottom: '0.75rem' }}>
+                              ⚠ Concerns
+                            </div>
+                            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                              {analysis.cons.map((con, i) => (
+                                <li key={i} style={{
+                                  fontSize: '0.85rem',
+                                  color: '#e0e6ed',
+                                  marginBottom: '0.5rem',
+                                  paddingLeft: '1.25rem',
+                                  position: 'relative',
+                                }}>
+                                  <span style={{ position: 'absolute', left: 0, color: '#ff8888' }}>-</span>
+                                  {con}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          border: `1px solid ${getRiskColor(analysis.risks.level)}`,
+                          borderRadius: '6px',
+                          padding: '1rem',
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            marginBottom: '0.75rem',
+                          }}>
+                            <div style={{ fontSize: '0.85rem', color: '#6b8cae' }}>
+                              Risk Assessment
+                            </div>
+                            <div style={{
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              color: getRiskColor(analysis.risks.level),
+                            }}>
+                              {analysis.risks.level} RISK
+                            </div>
+                          </div>
+                          <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.85rem', color: '#e0e6ed' }}>
+                            {analysis.risks.details.map((risk, i) => (
+                              <li key={i}>{risk}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<BidLevelingApp />);
+    </script>
+</body>
+</html>

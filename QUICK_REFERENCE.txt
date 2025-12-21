@@ -1,0 +1,103 @@
+===============================================
+BID LEVELING AI - QUICK REFERENCE CARD
+===============================================
+
+🚀 FASTEST START (5 minutes):
+
+1. Extract this folder
+2. cd bid-leveling-ai
+3. Run quick_start script:
+   - Mac/Linux: ./quick_start.sh
+   - Windows: quick_start.bat
+4. Follow the prompts!
+
+===============================================
+
+📋 WHAT YOU NEED:
+
+✓ Python 3.8+ installed
+✓ Anthropic API Key (get at: console.anthropic.com)
+✓ A web browser
+
+===============================================
+
+📂 KEY FILES:
+
+📖 README.md - Complete documentation
+🚀 DEPLOYMENT.md - Production deployment guide  
+📁 PROJECT_STRUCTURE.md - This overview
+⚡ quick_start.sh / .bat - Automated setup
+
+backend/
+  ├── app.py - Flask API server
+  ├── requirements.txt - Dependencies
+  └── .env.template - Config template
+
+frontend/
+  ├── BidLevelingApp.jsx - React component
+  └── index.html - Standalone HTML version
+
+===============================================
+
+🎯 TWO WAYS TO USE:
+
+OPTION 1: Standalone HTML (Easiest)
+  1. Run: cd backend && python app.py
+  2. Open: frontend/index.html in browser
+  
+OPTION 2: Full React Dev
+  1. Run: cd backend && python app.py
+  2. Run: cd frontend && npm install && npm run dev
+
+===============================================
+
+🧪 TEST IT:
+
+Generate sample PDFs:
+  cd backend
+  python generate_sample_bids.py
+  
+Then upload from: backend/sample_bids/
+
+===============================================
+
+🔑 API KEY SETUP:
+
+1. Copy: backend/.env.template to backend/.env
+2. Edit backend/.env
+3. Add: ANTHROPIC_API_KEY=your_key_here
+
+===============================================
+
+📡 DEFAULT PORTS:
+
+Backend:  http://localhost:5000
+Frontend: http://localhost:3000 (React)
+          or just open index.html
+
+===============================================
+
+❓ STUCK? CHECK:
+
+1. README.md - Troubleshooting section
+2. Backend logs in terminal
+3. Browser console (F12)
+4. API key is set in .env file
+
+===============================================
+
+🎨 FEATURES:
+
+✓ Single bid analysis
+✓ Multiple bid comparison  
+✓ AI-powered recommendations
+✓ Risk assessment
+✓ Cost breakdown
+✓ Pros/cons analysis
+✓ Professional blueprint UI
+
+===============================================
+
+Built with Claude AI
+Ready for production deployment!
+===============================================
