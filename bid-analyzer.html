@@ -14,6 +14,11 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'JetBrains Mono', monospace; margin: 0; padding: 0; }
         #root { min-height: 100vh; }
+
+        @keyframes progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
     </style>
 </head>
 <body>
@@ -30,6 +35,8 @@
           const [loading, setLoading] = useState(false);
           const [error, setError] = useState(null);
           const [mode, setMode] = useState('single');
+          const [progressText, setProgressText] = useState('');
+          const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
 
           const handleFileChange = (e) => {
             const selectedFiles = Array.from(e.target.files);
@@ -53,6 +60,7 @@
 
             setLoading(true);
             setError(null);
+            setProgressText('Uploading PDF files...');
 
             try {
               if (mode === 'single' && files.length === 1) {
@@ -60,32 +68,50 @@
                 formData.append('file', files[0]);
                 formData.append('bidder_name', bidderNames[0]);
 
+                setProgressText('Extracting text from PDF...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                setProgressText('Sending to Claude AI for analysis...');
                 const response = await fetch(`${API_URL}/analyze-bid`, {
                   method: 'POST',
                   body: formData,
                 });
 
                 if (!response.ok) throw new Error('Analysis failed');
+
+                setProgressText('Processing AI response...');
                 const data = await response.json();
+
+                setProgressText('Analysis complete!');
                 setAnalyses({ individual_analyses: [data] });
               } else {
                 const formData = new FormData();
                 files.forEach(file => formData.append('files', file));
                 bidderNames.forEach(name => formData.append('bidder_names', name));
 
+                setProgressText(`Extracting text from ${files.length} PDF files...`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                setProgressText('Sending to Claude AI for comprehensive comparison...');
                 const response = await fetch(`${API_URL}/compare-bids`, {
                   method: 'POST',
                   body: formData,
                 });
 
                 if (!response.ok) throw new Error('Comparison failed');
+
+                setProgressText('Processing AI response...');
                 const data = await response.json();
+
+                setProgressText('Comparison complete!');
                 setAnalyses(data);
               }
             } catch (err) {
               setError(err.message || 'An error occurred during analysis');
+              setProgressText('');
             } finally {
               setLoading(false);
+              setTimeout(() => setProgressText(''), 2000);
             }
           };
 
@@ -236,6 +262,35 @@
                     {loading ? '⚙️ ANALYZING...' : '🔍 ANALYZE BIDS'}
                   </button>
 
+                  {progressText && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1rem',
+                      background: 'rgba(74, 143, 231, 0.1)',
+                      border: '1px solid #4a8fe7',
+                      borderRadius: '4px',
+                      color: '#4a8fe7',
+                      textAlign: 'center',
+                      fontSize: '0.95rem',
+                    }}>
+                      <div style={{ marginBottom: '0.5rem' }}>⚙️ {progressText}</div>
+                      <div style={{
+                        width: '100%',
+                        height: '4px',
+                        background: 'rgba(74, 143, 231, 0.2)',
+                        borderRadius: '2px',
+                        overflow: 'hidden',
+                      }}>
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          background: 'linear-gradient(90deg, #4a8fe7, #00d4ff)',
+                          animation: 'progress 1.5s ease-in-out infinite',
+                        }} />
+                      </div>
+                    </div>
+                  )}
+
                   {error && (
                     <div style={{
                       marginTop: '1rem',
@@ -250,7 +305,45 @@
                   )}
                 </div>
 
-                {analyses && analyses.individual_analyses && (
+                {analyses && analyses.individual_analyses && analyses.individual_analyses.length > 1 && (
+                  <div style={{
+                    background: 'rgba(15, 22, 36, 0.6)',
+                    border: '1px solid #1a4d8f',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    marginBottom: '2rem',
+                    display: 'flex',
+                    gap: '1rem',
+                    justifyContent: 'center',
+                  }}>
+                    <button onClick={() => setViewMode('cards')} style={{
+                      padding: '0.75rem 1.5rem',
+                      background: viewMode === 'cards' ? '#1a4d8f' : 'transparent',
+                      border: '1px solid #1a4d8f',
+                      color: viewMode === 'cards' ? '#00d4ff' : '#6b8cae',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: '0.85rem',
+                    }}>
+                      📋 Card View
+                    </button>
+                    <button onClick={() => setViewMode('table')} style={{
+                      padding: '0.75rem 1.5rem',
+                      background: viewMode === 'table' ? '#1a4d8f' : 'transparent',
+                      border: '1px solid #1a4d8f',
+                      color: viewMode === 'table' ? '#00d4ff' : '#6b8cae',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: '0.85rem',
+                    }}>
+                      📊 Table View
+                    </button>
+                  </div>
+                )}
+
+                {analyses && analyses.individual_analyses && viewMode === 'cards' && (
                   <div>
                     {analyses.individual_analyses.map((analysis, index) => (
                       <div key={index} style={{
@@ -389,6 +482,253 @@
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {analyses && analyses.individual_analyses && viewMode === 'table' && (
+                  <div style={{
+                    background: 'rgba(15, 22, 36, 0.8)',
+                    border: '1px solid #1a4d8f',
+                    borderRadius: '8px',
+                    padding: '2rem',
+                    overflowX: 'auto',
+                  }}>
+                    <h2 style={{ color: '#00d4ff', marginBottom: '1.5rem', textAlign: 'center' }}>
+                      Bid Comparison Table
+                    </h2>
+
+                    <table style={{
+                      width: '100%',
+                      borderCollapse: 'separate',
+                      borderSpacing: '0',
+                      fontSize: '0.85rem',
+                    }}>
+                      <thead>
+                        <tr>
+                          <th style={{
+                            background: '#1a4d8f',
+                            color: '#00d4ff',
+                            padding: '1rem',
+                            textAlign: 'left',
+                            borderBottom: '2px solid #4a8fe7',
+                            position: 'sticky',
+                            top: 0,
+                            fontWeight: 600,
+                            minWidth: '150px',
+                          }}>
+                            Criteria
+                          </th>
+                          {analyses.individual_analyses.map((analysis, index) => (
+                            <th key={index} style={{
+                              background: '#1a4d8f',
+                              color: '#00d4ff',
+                              padding: '1rem',
+                              textAlign: 'center',
+                              borderBottom: '2px solid #4a8fe7',
+                              borderLeft: '1px solid #0a0e1a',
+                              position: 'sticky',
+                              top: 0,
+                              fontWeight: 600,
+                              minWidth: '250px',
+                            }}>
+                              {analysis.bidder_name}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Score Row */}
+                        <tr style={{ background: 'rgba(26, 77, 143, 0.1)' }}>
+                          <td style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #1a4d8f',
+                            color: '#6b8cae',
+                            fontWeight: 600,
+                          }}>
+                            Overall Score
+                          </td>
+                          {analyses.individual_analyses.map((analysis, index) => (
+                            <td key={index} style={{
+                              padding: '1rem',
+                              borderBottom: '1px solid #1a4d8f',
+                              borderLeft: '1px solid #1a4d8f',
+                              textAlign: 'center',
+                              fontSize: '1.5rem',
+                              color: '#4a8fe7',
+                              fontWeight: 700,
+                            }}>
+                              {analysis.overall_score}/10
+                            </td>
+                          ))}
+                        </tr>
+
+                        {/* Recommendation Row */}
+                        <tr>
+                          <td style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #1a4d8f',
+                            color: '#6b8cae',
+                            fontWeight: 600,
+                          }}>
+                            Recommendation
+                          </td>
+                          {analyses.individual_analyses.map((analysis, index) => (
+                            <td key={index} style={{
+                              padding: '1rem',
+                              borderBottom: '1px solid #1a4d8f',
+                              borderLeft: '1px solid #1a4d8f',
+                              textAlign: 'center',
+                              color: getRecommendationColor(analysis.recommendation),
+                              fontWeight: 600,
+                            }}>
+                              {analysis.recommendation}
+                            </td>
+                          ))}
+                        </tr>
+
+                        {/* Summary Row */}
+                        <tr style={{ background: 'rgba(26, 77, 143, 0.1)' }}>
+                          <td style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #1a4d8f',
+                            color: '#6b8cae',
+                            fontWeight: 600,
+                            verticalAlign: 'top',
+                          }}>
+                            Summary
+                          </td>
+                          {analyses.individual_analyses.map((analysis, index) => (
+                            <td key={index} style={{
+                              padding: '1rem',
+                              borderBottom: '1px solid #1a4d8f',
+                              borderLeft: '1px solid #1a4d8f',
+                              color: '#e0e6ed',
+                              lineHeight: 1.6,
+                            }}>
+                              {analysis.summary}
+                            </td>
+                          ))}
+                        </tr>
+
+                        {/* Strengths Row */}
+                        <tr>
+                          <td style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #1a4d8f',
+                            color: '#6b8cae',
+                            fontWeight: 600,
+                            verticalAlign: 'top',
+                          }}>
+                            Strengths
+                          </td>
+                          {analyses.individual_analyses.map((analysis, index) => (
+                            <td key={index} style={{
+                              padding: '1rem',
+                              borderBottom: '1px solid #1a4d8f',
+                              borderLeft: '1px solid #1a4d8f',
+                            }}>
+                              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                                {analysis.pros.map((pro, i) => (
+                                  <li key={i} style={{
+                                    color: '#e0e6ed',
+                                    marginBottom: '0.5rem',
+                                    paddingLeft: '1.25rem',
+                                    position: 'relative',
+                                  }}>
+                                    <span style={{ position: 'absolute', left: 0, color: '#00ff88' }}>+</span>
+                                    {pro}
+                                  </li>
+                                ))}
+                              </ul>
+                            </td>
+                          ))}
+                        </tr>
+
+                        {/* Concerns Row */}
+                        <tr style={{ background: 'rgba(26, 77, 143, 0.1)' }}>
+                          <td style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #1a4d8f',
+                            color: '#6b8cae',
+                            fontWeight: 600,
+                            verticalAlign: 'top',
+                          }}>
+                            Concerns
+                          </td>
+                          {analyses.individual_analyses.map((analysis, index) => (
+                            <td key={index} style={{
+                              padding: '1rem',
+                              borderBottom: '1px solid #1a4d8f',
+                              borderLeft: '1px solid #1a4d8f',
+                            }}>
+                              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                                {analysis.cons.map((con, i) => (
+                                  <li key={i} style={{
+                                    color: '#e0e6ed',
+                                    marginBottom: '0.5rem',
+                                    paddingLeft: '1.25rem',
+                                    position: 'relative',
+                                  }}>
+                                    <span style={{ position: 'absolute', left: 0, color: '#ff8888' }}>-</span>
+                                    {con}
+                                  </li>
+                                ))}
+                              </ul>
+                            </td>
+                          ))}
+                        </tr>
+
+                        {/* Risk Level Row */}
+                        <tr>
+                          <td style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #1a4d8f',
+                            color: '#6b8cae',
+                            fontWeight: 600,
+                          }}>
+                            Risk Level
+                          </td>
+                          {analyses.individual_analyses.map((analysis, index) => (
+                            <td key={index} style={{
+                              padding: '1rem',
+                              borderBottom: '1px solid #1a4d8f',
+                              borderLeft: '1px solid #1a4d8f',
+                              textAlign: 'center',
+                              color: getRiskColor(analysis.risks.level),
+                              fontWeight: 600,
+                            }}>
+                              {analysis.risks.level} RISK
+                            </td>
+                          ))}
+                        </tr>
+
+                        {/* Risk Details Row */}
+                        <tr style={{ background: 'rgba(26, 77, 143, 0.1)' }}>
+                          <td style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #1a4d8f',
+                            color: '#6b8cae',
+                            fontWeight: 600,
+                            verticalAlign: 'top',
+                          }}>
+                            Risk Details
+                          </td>
+                          {analyses.individual_analyses.map((analysis, index) => (
+                            <td key={index} style={{
+                              padding: '1rem',
+                              borderBottom: '1px solid #1a4d8f',
+                              borderLeft: '1px solid #1a4d8f',
+                            }}>
+                              <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#e0e6ed' }}>
+                                {analysis.risks.details.map((risk, i) => (
+                                  <li key={i} style={{ marginBottom: '0.5rem' }}>{risk}</li>
+                                ))}
+                              </ul>
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
