@@ -11,14 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-# Enable CORS for all origins (development mode)
-CORS(app, resources={
-    r"/api/*": {
-        "origins": "*",
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
-    }
-})
+# Enable CORS for all routes and origins (development mode)
+CORS(app, origins="*", supports_credentials=False)
 
 # Initialize Anthropic client
 client = anthropic.Anthropic(
