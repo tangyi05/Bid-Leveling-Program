@@ -36,7 +36,7 @@ def extract_text_from_pdf(pdf_file):
 
 def analyze_bid_with_claude(bid_text, bidder_name):
     """Use Claude to analyze construction bid"""
-    
+
     prompt = f"""You are an expert construction bid analyst. Analyze this construction bid from {bidder_name} and provide a comprehensive evaluation.
 
 BID DOCUMENT:
@@ -45,17 +45,19 @@ BID DOCUMENT:
 Please analyze this bid and provide:
 
 1. **Summary**: Brief overview of the bid (2-3 sentences)
-2. **Key Categories**: Break down the bid into main cost categories (e.g., Labor, Materials, Equipment, Subcontractors, Overhead)
-3. **Strengths (Pros)**: List 4-6 specific advantages of this bid
-4. **Weaknesses (Cons)**: List 4-6 specific concerns or disadvantages
-5. **Risk Assessment**: Identify potential risks (LOW/MEDIUM/HIGH)
-6. **Pricing Analysis**: Comment on pricing competitiveness and any unusual line items
-7. **Recommendation**: Clear recommendation (RECOMMEND/RECOMMEND WITH CAUTION/DO NOT RECOMMEND)
-8. **Overall Score**: Rate 1-10
+2. **Total Cost**: Extract the total bid amount (if available)
+3. **Key Categories**: Break down the bid into main cost categories (e.g., Labor, Materials, Equipment, Subcontractors, Overhead)
+4. **Strengths (Pros)**: List 4-6 specific advantages of this bid
+5. **Weaknesses (Cons)**: List 4-6 specific concerns or disadvantages
+6. **Risk Assessment**: Identify potential risks (LOW/MEDIUM/HIGH)
+7. **Pricing Analysis**: Comment on pricing competitiveness and any unusual line items
+8. **Recommendation**: Clear recommendation (RECOMMEND/RECOMMEND WITH CAUTION/DO NOT RECOMMEND)
+9. **Overall Score**: Rate 1-10
 
 Format your response as JSON with this exact structure:
 {{
   "summary": "...",
+  "total_cost": "$XXX,XXX or 'Not specified'",
   "categories": [
     {{"name": "Category Name", "amount": "dollar amount or description", "percentage": "% of total if available"}}
   ],
