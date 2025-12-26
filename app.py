@@ -215,12 +215,14 @@ def health_check():
 @app.route('/')
 def serve_index():
     """Serve the main HTML file"""
-    return send_from_directory('.', 'bid-analyzer.html')
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(base_dir, 'bid-analyzer.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
     """Serve static files"""
-    return send_from_directory('.', path)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(base_dir, path)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
