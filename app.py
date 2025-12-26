@@ -91,10 +91,14 @@ Respond ONLY with valid JSON, no other text."""
     
     return json.loads(response_text.strip())
 
-@app.route('/api/analyze-bid', methods=['POST'])
+@app.route('/api/analyze-bid', methods=['POST', 'OPTIONS'])
 def analyze_bid():
     """Endpoint to analyze a single bid PDF"""
-    
+
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        return '', 204
+
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     
@@ -127,9 +131,13 @@ def analyze_bid():
     except Exception as e:
         return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
 
-@app.route('/api/compare-bids', methods=['POST'])
+@app.route('/api/compare-bids', methods=['POST', 'OPTIONS'])
 def compare_bids():
     """Endpoint to compare multiple bids"""
+
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        return '', 204
 
     print("=== COMPARE BIDS REQUEST RECEIVED ===")
 
