@@ -229,11 +229,27 @@ def serve_index():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return send_from_directory(base_dir, 'bid-analyzer.html')
 
+@app.route('/bid-compare.html')
+def serve_bid_compare():
+    """Serve the bid comparison HTML file"""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(base_dir, 'bid-compare.html')
+
+@app.route('/bid-analyzer.html')
+def serve_bid_analyzer():
+    """Serve the bid analyzer HTML file"""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(base_dir, 'bid-analyzer.html')
+
 @app.route('/<path:path>')
 def serve_static(path):
     """Serve static files"""
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    return send_from_directory(base_dir, path)
+    try:
+        return send_from_directory(base_dir, path)
+    except Exception as e:
+        print(f"Error serving {path}: {str(e)}")
+        return "File not found", 404
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
