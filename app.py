@@ -120,16 +120,23 @@ def analyze_bid():
 @app.route('/api/compare-bids', methods=['POST'])
 def compare_bids():
     """Endpoint to compare multiple bids"""
-    
+
+    print("=== COMPARE BIDS REQUEST RECEIVED ===")
+
     if 'files' not in request.files:
+        print("ERROR: No files in request")
         return jsonify({"error": "No files uploaded"}), 400
-    
+
     files = request.files.getlist('files')
     bidder_names = request.form.getlist('bidder_names')
-    
+
+    print(f"Files received: {len(files)}")
+    print(f"Bidder names: {bidder_names}")
+
     if len(files) < 2:
+        print("ERROR: Less than 2 files uploaded")
         return jsonify({"error": "Please upload at least 2 bids to compare"}), 400
-    
+
     try:
         analyses = []
         
@@ -188,6 +195,9 @@ Format as JSON:
         })
     
     except Exception as e:
+        print(f"ERROR: Comparison failed - {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Comparison failed: {str(e)}"}), 500
 
 @app.route('/api/health', methods=['GET'])
