@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import anthropic
 import pdfplumber
@@ -211,6 +211,16 @@ Format as JSON:
 def health_check():
     """Health check endpoint"""
     return jsonify({"status": "healthy", "service": "bid-analyzer"})
+
+@app.route('/')
+def serve_index():
+    """Serve the main HTML file"""
+    return send_from_directory('.', 'bid-analyzer.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    """Serve static files"""
+    return send_from_directory('.', path)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
