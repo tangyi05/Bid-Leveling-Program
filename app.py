@@ -92,57 +92,91 @@ Respond ONLY with valid JSON, no other text."""
     return json.loads(response_text.strip())
 
 def analyze_bid_with_citations(bid_text, bidder_name):
-    """Use Claude to analyze construction bid WITH CITATIONS"""
+    """Use Claude to analyze construction bid WITH CITATIONS and LINE ITEMS"""
 
-    prompt = f"""You are an expert construction bid analyst. Analyze this construction bid from {bidder_name} and provide a comprehensive evaluation WITH SPECIFIC CITATIONS.
+    prompt = f"""You are an expert construction bid analyst. Analyze this construction bid from {bidder_name}.
 
 BID DOCUMENT:
 {bid_text}
 
-IMPORTANT: For every statement you make, include a direct quote or citation from the original document. When you mention a strength, weakness, or risk, quote the EXACT TEXT from the bid document that supports your analysis.
+CRITICAL INSTRUCTIONS:
+1. ALWAYS provide analysis even if information is incomplete or missing
+2. If information is missing, explicitly state what's missing in your analysis
+3. Extract ALL line items with their costs from the bid
+4. Identify exclusions and inclusions
+5. Provide citations for every claim
 
-Please analyze this bid and provide:
+EXTRACT LINE ITEMS:
+Go through the bid and extract every cost line item you can find. For each line item include:
+- Category (e.g., ELECTRICAL, PLUMBING, HVAC, GENERAL REQUIREMENTS, etc.)
+- Description (the item name)
+- Unit cost if available
+- Quantity if available
+- Total cost for that line item
+- Citation (exact quote from document)
 
-1. **Summary**: Brief overview with citations
-2. **Total Cost**: Extract the total bid amount (quote exactly)
-3. **Key Categories**: Break down with specific quotes
-4. **Strengths (Pros)**: List 4-6 advantages, EACH with a direct quote from the document
-5. **Weaknesses (Cons)**: List 4-6 concerns, EACH with a direct quote from the document
-6. **Risk Assessment**: Identify potential risks with supporting quotes
-7. **Pricing Analysis**: Comment with specific numbers from the document
-8. **Recommendation**: Clear recommendation with supporting evidence
-9. **Overall Score**: Rate 1-10
+If the bid document is incomplete or lacks detail, still provide analysis but clearly note:
+- What information is missing
+- What should have been included
+- Why this makes evaluation difficult
 
-Format your response as JSON with this exact structure:
+Format your response as JSON:
 {{
-  "summary": "...",
-  "total_cost": "$XXX,XXX or 'Not specified'",
-  "categories": [
-    {{"name": "Category Name", "amount": "dollar amount", "citation": "exact quote from document"}}
+  "summary": "Brief overview. If incomplete, explain what's missing.",
+  "total_cost": "$XXX,XXX or 'Not specified' or 'Incomplete - missing pricing'",
+  "completeness": {{
+    "is_complete": true/false,
+    "missing_items": ["list what's missing if incomplete"],
+    "quality_score": 1-10
+  }},
+  "line_items": [
+    {{
+      "category": "ELECTRICAL/PLUMBING/HVAC/etc",
+      "description": "item description",
+      "quantity": "number or 'N/A'",
+      "unit_cost": "$XX.XX or 'N/A'",
+      "total_cost": "$XXX",
+      "citation": "exact quote showing this cost"
+    }}
+  ],
+  "inclusions": [
+    {{"item": "what's included", "citation": "exact quote"}},
+    ...
+  ],
+  "exclusions": [
+    {{"item": "what's excluded", "citation": "exact quote"}},
+    ...
+  ],
+  "assumptions": [
+    {{"assumption": "what bidder assumes", "citation": "exact quote"}},
+    ...
   ],
   "pros": [
-    {{"text": "strength description", "citation": "exact quote from document that supports this"}},
+    {{"text": "strength", "citation": "exact quote"}},
     ...
   ],
   "cons": [
-    {{"text": "concern description", "citation": "exact quote from document that supports this"}},
+    {{"text": "concern or missing info", "citation": "exact quote or 'Information not provided'"}},
     ...
   ],
   "risks": {{
     "level": "LOW/MEDIUM/HIGH",
     "details": [
-      {{"text": "risk description", "citation": "exact quote"}}
+      {{"text": "risk", "citation": "exact quote"}}
     ]
   }},
-  "pricing_analysis": "...",
-  "recommendation": "RECOMMEND/RECOMMEND WITH CAUTION/DO NOT RECOMMEND",
-  "recommendation_rationale": "...",
-  "overall_score": 8
+  "recommendation": "RECOMMEND/RECOMMEND WITH CAUTION/DO NOT RECOMMEND/INSUFFICIENT INFORMATION",
+  "recommendation_rationale": "Explain recommendation. If incomplete, explain why it's risky.",
+  "overall_score": 1-10
 }}
 
-CRITICAL: Every pros, cons, and risk item MUST include a "citation" field with the EXACT text from the bid document. If you cannot find a direct quote, use "citation": "Not explicitly stated in document".
+IMPORTANT:
+- If bid lacks detail, set completeness.is_complete to false
+- Add "Insufficient detail provided" to cons if appropriate
+- Still extract whatever line items you CAN find
+- If no pricing found, list line items with cost as "Not provided"
 
-Respond ONLY with valid JSON, no other text."""
+Respond ONLY with valid JSON."""
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -360,6 +394,12 @@ def serve_bid_analyzer_enhanced():
     """Serve the enhanced bid analyzer HTML file with citations"""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return send_from_directory(base_dir, 'bid-analyzer-enhanced.html')
+
+@app.route('/bid-tabulation.html')
+def serve_bid_tabulation():
+    """Serve the bid tabulation comparison view"""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(base_dir, 'bid-tabulation.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
