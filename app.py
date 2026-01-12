@@ -79,16 +79,88 @@ Respond ONLY with valid JSON, no other text."""
             {"role": "user", "content": prompt}
         ]
     )
-    
+
     # Parse Claude's response
     response_text = message.content[0].text
-    
+
     # Clean up response if it has markdown code blocks
     if response_text.startswith("```"):
         response_text = response_text.split("```")[1]
         if response_text.startswith("json"):
             response_text = response_text[4:]
-    
+
+    return json.loads(response_text.strip())
+
+def analyze_bid_with_citations(bid_text, bidder_name):
+    """Use Claude to analyze construction bid WITH CITATIONS"""
+
+    prompt = f"""You are an expert construction bid analyst. Analyze this construction bid from {bidder_name} and provide a comprehensive evaluation WITH SPECIFIC CITATIONS.
+
+BID DOCUMENT:
+{bid_text}
+
+IMPORTANT: For every statement you make, include a direct quote or citation from the original document. When you mention a strength, weakness, or risk, quote the EXACT TEXT from the bid document that supports your analysis.
+
+Please analyze this bid and provide:
+
+1. **Summary**: Brief overview with citations
+2. **Total Cost**: Extract the total bid amount (quote exactly)
+3. **Key Categories**: Break down with specific quotes
+4. **Strengths (Pros)**: List 4-6 advantages, EACH with a direct quote from the document
+5. **Weaknesses (Cons)**: List 4-6 concerns, EACH with a direct quote from the document
+6. **Risk Assessment**: Identify potential risks with supporting quotes
+7. **Pricing Analysis**: Comment with specific numbers from the document
+8. **Recommendation**: Clear recommendation with supporting evidence
+9. **Overall Score**: Rate 1-10
+
+Format your response as JSON with this exact structure:
+{{
+  "summary": "...",
+  "total_cost": "$XXX,XXX or 'Not specified'",
+  "categories": [
+    {{"name": "Category Name", "amount": "dollar amount", "citation": "exact quote from document"}}
+  ],
+  "pros": [
+    {{"text": "strength description", "citation": "exact quote from document that supports this"}},
+    ...
+  ],
+  "cons": [
+    {{"text": "concern description", "citation": "exact quote from document that supports this"}},
+    ...
+  ],
+  "risks": {{
+    "level": "LOW/MEDIUM/HIGH",
+    "details": [
+      {{"text": "risk description", "citation": "exact quote"}}
+    ]
+  }},
+  "pricing_analysis": "...",
+  "recommendation": "RECOMMEND/RECOMMEND WITH CAUTION/DO NOT RECOMMEND",
+  "recommendation_rationale": "...",
+  "overall_score": 8
+}}
+
+CRITICAL: Every pros, cons, and risk item MUST include a "citation" field with the EXACT text from the bid document. If you cannot find a direct quote, use "citation": "Not explicitly stated in document".
+
+Respond ONLY with valid JSON, no other text."""
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=4000,
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
+
+    # Parse Claude's response
+    response_text = message.content[0].text
+
+    # Clean up response if it has markdown code blocks
+    if response_text.startswith("```"):
+        response_text = response_text.split("```")[1]
+        if response_text.startswith("json"):
+            response_text = response_text[4:]
+
     return json.loads(response_text.strip())
 
 @app.route('/api/analyze-bid', methods=['POST', 'OPTIONS'])
@@ -218,6 +290,48 @@ Format as JSON:
         traceback.print_exc()
         return jsonify({"error": f"Comparison failed: {str(e)}"}), 500
 
+@app.route('/api/analyze-bid-with-citations', methods=['POST', 'OPTIONS'])
+def analyze_bid_with_citations_endpoint():
+    """Endpoint to analyze a single bid PDF WITH CITATIONS"""
+
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files['file']
+    bidder_name = request.form.get('bidder_name', 'Unknown Bidder')
+
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    if not file.filename.endswith('.pdf'):
+        return jsonify({"error": "File must be a PDF"}), 400
+
+    try:
+        # Extract text from PDF
+        bid_text = extract_text_from_pdf(file)
+
+        if not bid_text.strip():
+            return jsonify({"error": "Could not extract text from PDF"}), 400
+
+        # Analyze with Claude (with citations)
+        analysis = analyze_bid_with_citations(bid_text, bidder_name)
+
+        # Add metadata
+        analysis['bidder_name'] = bidder_name
+        analysis['filename'] = file.filename
+        analysis['analyzed_at'] = datetime.now().isoformat()
+
+        return jsonify(analysis)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -240,6 +354,12 @@ def serve_bid_analyzer():
     """Serve the bid analyzer HTML file"""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return send_from_directory(base_dir, 'bid-analyzer.html')
+
+@app.route('/bid-analyzer-enhanced.html')
+def serve_bid_analyzer_enhanced():
+    """Serve the enhanced bid analyzer HTML file with citations"""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(base_dir, 'bid-analyzer-enhanced.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
